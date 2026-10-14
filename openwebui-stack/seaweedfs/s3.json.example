@@ -1,0 +1,14 @@
+{
+  "identities": [
+    {
+      "name": "openwebui",
+      "credentials": [
+        {
+          "accessKey": "API_KEY_ChangeMe",
+          "secretKey": "S3ChangeMe"
+        }
+      ],
+      "actions": ["Admin", "Read", "List", "Tagging", "Write"]
+    }
+  ]
+}

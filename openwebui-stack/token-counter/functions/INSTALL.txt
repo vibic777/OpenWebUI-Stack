@@ -1,0 +1,10 @@
+Счётчик токенов: только функция token_and_time.
+Показывает входные/выходные токены, общее число, длительность и скорость генерации;
+если провайдер не передал usage, некоторые значения оцениваются.
+
+Установка через Open WebUI API (Python 3.8+, стандартная библиотека):
+  python3 install_functions.py --url http://127.0.0.1:3000 --email ADMIN_EMAIL
+Удаление только этой функции:
+  python3 install_functions.py --url http://127.0.0.1:3000 --email ADMIN_EMAIL --remove
+Пароль будет запрошен скрыто; также поддерживаются OWUI_ADMIN_PASSWORD и OWUI_TOKEN.
+Для ручной установки импортируйте functions.json в Admin -> Functions.

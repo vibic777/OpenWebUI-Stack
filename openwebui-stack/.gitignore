@@ -1,0 +1,18 @@
+# Local deployment settings and credentials
+.env
+.env.*
+!.env.example
+seaweedfs/s3.json
+nginx/qdrant-apikey.conf
+
+# Downloaded models and image-transition runtime state
+rerank/models/*.gguf
+.webui_secret_key
+.webui_secret_key.check.*
+.image-transition.state
+.image-transition.state.*
+.env.transition.*
+
+# Python-generated files
+__pycache__/
+*.py[cod]

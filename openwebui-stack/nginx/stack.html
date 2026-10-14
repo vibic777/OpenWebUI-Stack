@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Open WebUI Stack — сервер ИИ</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0b1020; --card:#151e36; --line:#2a3b68; --accent:#65d5ff; --muted:#a9b7d7; }
+    * { box-sizing: border-box; } body { margin:0; min-height:100vh; font-family: Inter, system-ui, sans-serif; color:#eef5ff; background: radial-gradient(circle at 20% 0%,#19366b 0,#0b1020 45%); }
+    .wrap { max-width: 960px; margin:auto; padding:32px 20px 56px; } .hero { display:flex; gap:24px; align-items:center; padding:28px; border:1px solid var(--line); border-radius:24px; background:linear-gradient(135deg,#172b53cc,#11182dcc); box-shadow:0 20px 60px #0005; }
+    .hero img { width:128px; height:128px; border-radius:20px; } h1 { margin:0 0 8px; font-size:clamp(2rem,5vw,4rem); } p { color:var(--muted); } .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:16px; margin-top:24px; }
+    a { display:block; padding:20px; border:1px solid var(--line); border-radius:16px; color:#fff; text-decoration:none; background:var(--card); transition:.2s; } a:hover { transform:translateY(-3px); border-color:var(--accent); } strong { display:block; color:var(--accent); font-size:1.1rem; margin-bottom:6px; } small { color:var(--muted); }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero"><img src="/stack-banner.svg" alt="Логотип проекта"><div><h1>Open WebUI Stack</h1><p>Добро пожаловать</p><small>Веб-интерфейс и сопутствующие сервисы проекта.</small></div></section>
+    <nav class="grid" aria-label="Сервисы">
+      <a href="/"><strong>Open WebUI</strong><small>Чат, Knowledge и документы</small></a>
+      <a href="/qdrant/"><strong>Qdrant</strong><small>Векторное хранилище</small></a>
+      <a href="/portainer/"><strong>Portainer</strong><small>Управление Docker</small></a>
+      <a href="/filer/"><strong>SeaweedFS Filer</strong><small>Файловое хранилище</small></a>
+    </nav>
+  </main>
+</body>
+</html>

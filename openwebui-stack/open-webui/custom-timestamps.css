@@ -1,0 +1,14 @@
+/* Paste into Open WebUI: Admin Panel -> Settings -> Interface -> Custom CSS (works from page load, no plugin needed).
+   Open WebUI 0.11.x hides the time of every message with ".hover-reveal{opacity:0}" until the mouse is over it.
+   This makes it always visible for user AND assistant messages. The second rule is for older builds. */
+
+time.hover-reveal {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+.group .invisible.group-hover\:visible.text-xs,
+.group .text-xs.invisible.group-hover\:visible {
+  visibility: visible !important;
+  opacity: 1 !important;
+}

@@ -1,0 +1,164 @@
+name: openwebui-mvp
+
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE:-postgres:17-alpine}
+    container_name: openwebui-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - backend
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  qdrant:
+    image: ${QDRANT_IMAGE:-qdrant/qdrant:v1.15.4}
+    container_name: openwebui-qdrant
+    restart: unless-stopped
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    ports:
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
+    networks:
+      - backend
+
+  valkey:
+    image: ${VALKEY_IMAGE:-valkey/valkey:8-alpine}
+    container_name: openwebui-valkey
+    restart: unless-stopped
+    command:
+      - valkey-server
+      - --appendonly
+      - "yes"
+    volumes:
+      - valkey_data:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    networks:
+      - backend
+
+  seaweedfs:
+    image: ${SEAWEEDFS_IMAGE:-chrislusf/seaweedfs:3.92}
+    container_name: openwebui-seaweedfs
+    restart: unless-stopped
+    command:
+      - server
+      - -dir=/data
+      - -s3
+      - -s3.config=/etc/seaweedfs/s3.json
+      - -volume.max=0
+    volumes:
+      - seaweedfs_data:/data
+      - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+    ports:
+      - "127.0.0.1:8333:8333"
+      - "127.0.0.1:8888:8888"
+    networks:
+      - backend
+
+  open-webui:
+    image: ${OPENWEBUI_IMAGE:-openwebui/open-webui:latest}
+    container_name: open-webui
+    restart: unless-stopped
+    # Policy overrides (sign-up, default role, default user permissions, RAG chunking).
+    # Empty file is fine; can contain Open WebUI policy overrides. deploy-stack.sh creates it.
+#    env_file:
+#      - policy.env
+    # Защита от fork-bomb: nproc (per-UID) + pids_limit (cgroup, per-container).
+    pids_limit: 4096
+    ulimits:
+      nproc:
+        soft: 4096
+        hard: 4096
+      nofile:
+        soft: 65536
+        hard: 65536
+    environment:
+      WEBUI_NAME: Open WebUI Stack
+      WEBUI_URL: ${WEBUI_URL}
+      OPENAI_API_BASE_URL: ${LMSTUDIO_URL}
+      OPENAI_API_KEY: ${LMSTUDIO_API_KEY}
+      ENABLE_OPENAI_API: "true"
+      ENABLE_OLLAMA_API: "false"
+      # Изолированный контур (без интернета): ничего не качать и не проверять снаружи.
+      OFFLINE_MODE: "true"
+      ENABLE_VERSION_UPDATE_CHECK: "false"
+      SCARF_NO_ANALYTICS: "true"
+      DO_NOT_TRACK: "true"
+      ANONYMIZED_TELEMETRY: "false"
+      # Иначе Postgres перебивает TIKA_SERVER_URL / engine после первого старта.
+      ENABLE_PERSISTENT_CONFIG: "false"
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@openwebui-postgres:5432/${POSTGRES_DB}
+      VECTOR_DB: qdrant
+      QDRANT_URI: http://openwebui-qdrant:6333
+      ENABLE_RAG_WEB_SEARCH: "false"
+      RAG_EMBEDDING_ENGINE: openai
+      RAG_OPENAI_API_BASE_URL: ${LMSTUDIO_URL}
+      RAG_OPENAI_API_KEY: ${LMSTUDIO_API_KEY}
+      RAG_EMBEDDING_MODEL: ${EMBEDDING_MODEL}
+      RAG_EMBEDDING_CONCURRENT_REQUESTS: "1"
+      RAG_EMBEDDING_BATCH_SIZE: "5"
+      STORAGE_PROVIDER: s3
+      S3_ENDPOINT_URL: http://openwebui-seaweedfs:8333
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_KEY}
+      # Ingest: всегда из compose, не из Админки (persistent config выключен).
+      CONTENT_EXTRACTION_ENGINE: tika
+      TIKA_SERVER_URL: http://openwebui-tika:9998
+      TIKA_SERVER_VERSION: "4"
+    volumes:
+      - openwebui_data:/app/backend/data
+    ports:
+      - "127.0.0.1:3000:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      valkey:
+        condition: service_started
+      seaweedfs:
+        condition: service_started
+      tika:
+        condition: service_healthy
+    networks:
+      - backend
+
+  tika:
+    image: ${TIKA_IMAGE:-apache/tika:4.0.0-full}
+    container_name: openwebui-tika
+    restart: unless-stopped
+    pids_limit: 1024
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:9998/tika || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    networks:
+      - backend
+
+
+volumes:
+  postgres_data:
+  qdrant_storage:
+  valkey_data:
+  seaweedfs_data:
+  openwebui_data:
+
+networks:
+  backend:
+    driver: bridge
+

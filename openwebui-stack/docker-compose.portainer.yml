@@ -1,0 +1,30 @@
+# Separate project. Same WEBUI_URL from .env (--trusted-origins).
+# docker compose -f docker-compose.portainer.yml up -d
+# Never down -v.
+
+name: portainer-mvp
+
+services:
+  portainer:
+    image: ${PORTAINER_IMAGE:-portainer/portainer-ce:latest}
+    container_name: portainer
+    restart: unless-stopped
+    command:
+      - --base-url
+      - /portainer
+      - --trusted-origins
+      - ${WEBUI_URL}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    ports:
+      - "127.0.0.1:9000:9000"
+    networks:
+      - backend
+
+volumes:
+  portainer_data:
+
+networks:
+  backend:
+    driver: bridge

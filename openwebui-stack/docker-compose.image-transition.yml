@@ -1,0 +1,14 @@
+# Temporary image transition overlay for Open WebUI only.
+# Use with image-transition.sh; do not add this overlay to the regular stack scripts.
+services:
+  open-webui:
+    image: ${OPENWEBUI_TRANSITION_IMAGE:?Set OPENWEBUI_TRANSITION_IMAGE via image-transition.sh}
+    volumes:
+      # start.sh stores the generated signing key in /app/backend/.webui_secret_key.
+      # Persist the existing key across image replacement and rollback.
+      - type: bind
+        source: ./.webui_secret_key
+        target: /app/backend/.webui_secret_key
+        read_only: true
+        bind:
+          create_host_path: false

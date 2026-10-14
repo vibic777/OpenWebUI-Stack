@@ -1,0 +1,51 @@
+# Separate project, like Portainer. No host ports.
+# Only Open WebUI reaches it: shared internal network `openwebui-rerank`.
+#
+#   docker compose -f docker-compose.rerank.yml up -d
+#   docker compose -f docker-compose.yml -f docker-compose.rerank-owui.yml up -d
+# Off:
+#   docker compose -f docker-compose.yml up -d
+#   docker compose -f docker-compose.rerank.yml down
+# Never down -v.
+#
+# GGUF: download bge-reranker-v2-m3-Q8_0.gguf from Hugging Face; save as ./rerank/models/model.gguf.
+# The model is not stored in git. See rerank/models/SOURCE.txt. Optional project.
+# Not EMBEDDING_MODEL. Not LM Studio. How to drop: START.md
+
+name: rerank-mvp
+
+services:
+  rerank:
+    # CPU x86 only (UI VM has no GPU). Not server-cuda, not ARM.
+    image: ${RERANK_IMAGE:-ghcr.io/ggml-org/llama.cpp:server}
+    platform: linux/amd64
+    container_name: openwebui-rerank
+    restart: unless-stopped
+    command:
+      - -m
+      - /models/${RERANK_GGUF:-model.gguf}
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+      - --reranking
+      - -c
+      - "8192"
+      - --n-gpu-layers
+      - "0"
+    volumes:
+      - ./rerank/models:/models:ro
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo >/dev/tcp/127.0.0.1/8080'"]
+      interval: 15s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+    networks:
+      - rerank
+
+networks:
+  rerank:
+    name: openwebui-rerank
+    driver: bridge
+    internal: true

@@ -1,0 +1,12 @@
+# Stock upstream images used by the stand (tag = what compose references; digest = what was tested on 2026-09-19).
+# Air-gapped hosts load images by TAG (docker save/load drops RepoDigests): see images-save.sh / images-load.sh.
+# To use a newer version: load it, set the *_IMAGE variable in .env (or keep the tag), then ./update-stack.sh --offline.
+
+openwebui/open-webui:latest          sha256:1a6399d237dc392a2313e0ca826020b3fd5d22536357840eb63393d18dc8b924   # 0.11.3
+postgres:17-alpine                   sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
+qdrant/qdrant:v1.15.4                sha256:6ac4807063bbecddca0250bfbcff52acf18c22263b904d12919349e6d0a408f1
+valkey/valkey:8-alpine               sha256:cfb2aa4c8352930130fd45eb231a57310ac326d7323edae12b384b9270c46dda
+chrislusf/seaweedfs:3.92             sha256:1b26111cc99c31e32070275520123b61646d6a9dd86a96703c9ed711140617ee
+apache/tika:4.0.0-full               sha256:80072bb73dd320a9de9709beb0b16d14dd6d2680376f8d31e498f55b633ba593
+portainer/portainer-ce:latest        sha256:511f3f06c96fe3b993ebeaafde311c1959cae73a7ef825dba6397d51b450dffa
+ghcr.io/ggml-org/llama.cpp:server    sha256:7fa75431b8a78f9528cab4aaf65e8ae3e13da546a3cc7221247ca81bab864d84   # optional rerank

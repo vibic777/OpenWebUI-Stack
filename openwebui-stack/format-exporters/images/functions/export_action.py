@@ -1,0 +1,242 @@
+"""
+title: Экспорт изображений (IMG)
+author: openwebui-stack
+version: 1.0.5
+required_open_webui_version: 0.11.3
+license: MIT
+description: Выбор формата изображения: SVG, PNG, JPG или WebP.
+"""
+from __future__ import annotations
+
+import base64
+import configparser
+import csv
+import io
+import json
+import re
+import time
+import xml.etree.ElementTree as ET
+from typing import Any
+from pydantic import BaseModel
+
+SOURCE_B64 = "IiIiCnRpdGxlOiBFeHBvcnQgSW1hZ2VzIChTVkcgLyBQTkcgLyBKUEcpCmF1dGhvcjogb3BlbndlYnVpLXN0YWNrCnZlcnNpb246IDEuMS4wCmxpY2Vuc2U6IE1JVApkZXNjcmlwdGlvbjogRG93bmxvYWRzIFNWRyBzb3VyY2UsIGVtYmVkZGVkIGJhc2U2NCBpbWFnZXMsIG9yIHNhbWUtb3JpZ2luIE9wZW4gV2ViVUkgaW1hZ2UgZmlsZXMgYXMgU1ZHL1BORy9KUEcuIFdvcmtzIG9mZmxpbmU7IG5ldmVyIGZldGNoZXMgZXh0ZXJuYWwgVVJMcy4KIiIiCgpmcm9tIF9fZnV0dXJlX18gaW1wb3J0IGFubm90YXRpb25zCgppbXBvcnQgYmFzZTY0CmltcG9ydCBiaW5hc2NpaQppbXBvcnQganNvbgppbXBvcnQgcmUKaW1wb3J0IHRpbWUKaW1wb3J0IHhtbC5ldHJlZS5FbGVtZW50VHJlZSBhcyBFVApmcm9tIHR5cGluZyBpbXBvcnQgQW55LCBPcHRpb25hbApmcm9tIHVybGxpYi5wYXJzZSBpbXBvcnQgdXJsc3BsaXQKCmZyb20gcHlkYW50aWMgaW1wb3J0IEJhc2VNb2RlbCwgRmllbGQKCkZPUk1BVFMgPSB7CiAgICAic3ZnIjogKCJTVkciLCAiaW1hZ2Uvc3ZnK3htbCIsICIjRkZCMTNCIiwgIlMiKSwKICAgICJwbmciOiAoIlBORyIsICJpbWFnZS9wbmciLCAiIzRCOEIzQiIsICJQIiksCiAgICAianBnIjogKCJKUEciLCAiaW1hZ2UvanBlZyIsICIjNjU1NEMwIiwgIkoiKSwKfQpEQVRBX1VSSSA9IHJlLmNvbXBpbGUociJkYXRhOmltYWdlLyhwbmd8anBlZ3xqcGcpO2Jhc2U2NCwoW0EtWmEtejAtOSsvPVxyXG5dKykiLCByZS5JKQpTVkdfREFUQV9VUkkgPSByZS5jb21waWxlKHIiZGF0YTppbWFnZS9zdmdcK3htbCg/OjtjaGFyc2V0PVteOyxdKyk/O2Jhc2U2NCwoW0EtWmEtejAtOSsvPVxyXG5dKykiLCByZS5JKQpTVkdfRkVOQ0UgPSByZS5jb21waWxlKHIiYGBgKD86c3ZnfHhtbCk/XHMqXG4oLio/KVxuYGBgIiwgcmUuSSB8IHJlLlMpClNWR19NQVJLVVAgPSByZS5jb21waWxlKHIiPHN2Z1xiLio/PC9zdmdccyo+IiwgcmUuSSB8IHJlLlMpCk1BWF9JTUFHRV9CWVRFUyA9IDIwICogMTAyNCAqIDEwMjQKTUFYX1NWR19CWVRFUyA9IDIgKiAxMDI0ICogMTAyNApNQVhfQkFTRTY0X0NIQVJTID0gKChNQVhfSU1BR0VfQllURVMgKyAyKSAvLyAzKSAqIDQgKyAxMDI0CklOVEVSTkFMX0ZJTEVfVVJMID0gcmUuY29tcGlsZSgKICAgIHIiKD86KD86aHR0cHM/Oi8vW14vXHMpXSspPykoL2FwaS92MS9maWxlcy9bQS1aYS16MC05Xy1dKy9jb250ZW50KSg/Ols/I11bXlxzKV0qKT8iLAogICAgcmUuSSwKKQoKCmRlZiBfd2Fsa19zdHJpbmdzKHZhbHVlOiBBbnkpOgogICAgaWYgaXNpbnN0YW5jZSh2YWx1ZSwgc3RyKToKICAgICAgICB5aWVsZCB2YWx1ZQogICAgZWxpZiBpc2luc3RhbmNlKHZhbHVlLCBkaWN0KToKICAgICAgICBmb3IgY2hpbGQgaW4gdmFsdWUudmFsdWVzKCk6CiAgICAgICAgICAgIHlpZWxkIGZyb20gX3dhbGtfc3RyaW5ncyhjaGlsZCkKICAgIGVsaWYgaXNpbnN0YW5jZSh2YWx1ZSwgKGxpc3QsIHR1cGxlKSk6CiAgICAgICAgZm9yIGNoaWxkIGluIHZhbHVlOgogICAgICAgICAgICB5aWVsZCBmcm9tIF93YWxrX3N0cmluZ3MoY2hpbGQpCgoKZGVmIF9zYWZlX3N2Zyhzb3VyY2U6IHN0cikgLT4gYnl0ZXM6CiAgICByYXcgPSBzb3VyY2Uuc3RyaXAoKS5lbmNvZGUoInV0Zi04IikKICAgIGlmIGxlbihyYXcpID4gTUFYX1NWR19CWVRFUzoKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCJTVkcg0L/RgNC10LLRi9GI0LDQtdGCINC70LjQvNC40YIgMiDQnNCRLiIpCiAgICB0cnk6CiAgICAgICAgcm9vdCA9IEVULmZyb21zdHJpbmcocmF3KQogICAgZXhjZXB0IEVULlBhcnNlRXJyb3IgYXMgZXhjOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoZiLQndC10LrQvtGA0YDQtdC60YLQvdGL0LkgU1ZHL1hNTDoge2V4Y30uIikgZnJvbSBleGMKICAgIGlmIHJvb3QudGFnLnJzcGxpdCgifSIsIDEpWy0xXS5sb3dlcigpICE9ICJzdmciOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoItCSINC+0YLQstC10YLQtSDQvdC1INC90LDQudC00LXQvSDQutC+0YDQvdC10LLQvtC5INGN0LvQtdC80LXQvdGCIDxzdmc+LiIpCiAgICBmb3JiaWRkZW4gPSB7InNjcmlwdCIsICJmb3JlaWdub2JqZWN0IiwgImlmcmFtZSIsICJvYmplY3QiLCAiZW1iZWQifQogICAgZm9yIGVsZW1lbnQgaW4gcm9vdC5pdGVyKCk6CiAgICAgICAgaWYgZWxlbWVudC50YWcucnNwbGl0KCJ9IiwgMSlbLTFdLmxvd2VyKCkgaW4gZm9yYmlkZGVuOgogICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCJTVkcg0YHQvtC00LXRgNC20LjRgiDQsNC60YLQuNCy0L3Ri9C5L9Cy0YHRgtGA0LDQuNCy0LDQtdC80YvQuSDRjdC70LXQvNC10L3Rgjsg0Y3QutGB0L/QvtGA0YIg0L7RgtC60LvQvtC90ZHQvS4iKQogICAgICAgIHRleHQgPSAoZWxlbWVudC50ZXh0IG9yICIiKS5sb3dlcigpCiAgICAgICAgaWYgImphdmFzY3JpcHQ6IiBpbiB0ZXh0IG9yICJAaW1wb3J0IiBpbiB0ZXh0IG9yIHJlLnNlYXJjaChyInVybFwoXHMqWydcIl0/XHMqKD86aHR0cHM/OnwvLykiLCB0ZXh0KToKICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcigiU1ZHINGB0L7QtNC10YDQttC40YIg0LjRgdC/0L7Qu9C90Y/QtdC80YvQuSDQutC+0LQg0LjQu9C4INCy0L3QtdGI0L3QuNC1INGA0LXRgdGD0YDRgdGLOyDRjdC60YHQv9C+0YDRgiDQvtGC0LrQu9C+0L3RkdC9LiIpCiAgICAgICAgZm9yIGtleSwgdmFsdWUgaW4gZWxlbWVudC5hdHRyaWIuaXRlbXMoKToKICAgICAgICAgICAgbG9jYWwgPSBrZXkucnNwbGl0KCJ9IiwgMSlbLTFdLmxvd2VyKCkKICAgICAgICAgICAgbG93ZXJlZCA9IHZhbHVlLnN0cmlwKCkubG93ZXIoKQogICAgICAgICAgICBpZiBsb2NhbC5zdGFydHN3aXRoKCJvbiIpIG9yICJqYXZhc2NyaXB0OiIgaW4gbG93ZXJlZCBvciAiZGF0YTp0ZXh0L2h0bWwiIGluIGxvd2VyZWQ6CiAgICAgICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCJTVkcg0YHQvtC00LXRgNC20LjRgiDQuNGB0L/QvtC70L3Rj9C10LzRi9C5INCw0YLRgNC40LHRg9GCINC40LvQuCDQvtC/0LDRgdC90YPRjiDRgdGB0YvQu9C60YM7INGN0LrRgdC/0L7RgNGCINC+0YLQutC70L7QvdGR0L0uIikKICAgICAgICAgICAgaWYgcmUuc2VhcmNoKHIidXJsXChccypbJ1wiXT9ccyooPzpodHRwcz86fC8vKSIsIGxvd2VyZWQpOgogICAgICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcigi0JLQvdC10YjQvdC40LUg0YDQtdGB0YPRgNGB0Ysg0LIgU1ZHINC90LUg0L/QvtC00LTQtdGA0LbQuNCy0LDRjtGC0YHRjy4iKQogICAgICAgICAgICBpZiBsb2NhbCBpbiB7ImhyZWYiLCAic3JjIn0gYW5kIGxvd2VyZWQgYW5kIG5vdCBsb3dlcmVkLnN0YXJ0c3dpdGgoIiMiKToKICAgICAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoItCS0L3QtdGI0L3QuNC1INGB0YHRi9C70LrQuCDQsiBTVkcg0L3QtSDQv9C+0LTQtNC10YDQttC40LLQsNGO0YLRgdGPLiIpCiAgICByZXR1cm4gcmF3ICsgKGIiXG4iIGlmIG5vdCByYXcuZW5kc3dpdGgoYiJcbiIpIGVsc2UgYiIiKQoKCmRlZiBfaW1hZ2VfcGF5bG9hZChzdHJpbmdzLCB3YW50ZWQ6IHN0cikgLT4gYnl0ZXM6CiAgICBmb3IgdGV4dCBpbiBzdHJpbmdzOgogICAgICAgIGZvciBtYXRjaCBpbiBEQVRBX1VSSS5maW5kaXRlcih0ZXh0KToKICAgICAgICAgICAgbWltZV9zdWJ0eXBlLCBlbmNvZGVkID0gbWF0Y2guZ3JvdXBzKCkKICAgICAgICAgICAga2luZCA9ICJwbmciIGlmIG1pbWVfc3VidHlwZS5sb3dlcigpID09ICJwbmciIGVsc2UgImpwZyIKICAgICAgICAgICAgaWYga2luZCAhPSB3YW50ZWQ6CiAgICAgICAgICAgICAgICBjb250aW51ZQogICAgICAgICAgICBpZiBsZW4oZW5jb2RlZCkgPiBNQVhfQkFTRTY0X0NIQVJTOgogICAgICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcigi0JjQt9C+0LHRgNCw0LbQtdC90LjQtSDQv9GA0LXQstGL0YjQsNC10YIg0LvQuNC80LjRgiAyMCDQnNCRLiIpCiAgICAgICAgICAgIHRyeToKICAgICAgICAgICAgICAgIHJhdyA9IGJhc2U2NC5iNjRkZWNvZGUocmUuc3ViKHIiXHMrIiwgIiIsIGVuY29kZWQpLCB2YWxpZGF0ZT1UcnVlKQogICAgICAgICAgICBleGNlcHQgKGJpbmFzY2lpLkVycm9yLCBWYWx1ZUVycm9yKSBhcyBleGM6CiAgICAgICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKGYi0JLRgdGC0YDQvtC10L3QvdGL0LUg0LTQsNC90L3Ri9C1IHtraW5kLnVwcGVyKCl9INC/0L7QstGA0LXQttC00LXQvdGLLiIpIGZyb20gZXhjCiAgICAgICAgICAgIGlmIG5vdCByYXcgb3IgbGVuKHJhdykgPiBNQVhfSU1BR0VfQllURVM6CiAgICAgICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCLQmNC30L7QsdGA0LDQttC10L3QuNC1INC/0YPRgdGC0L7QtSDQuNC70Lgg0L/RgNC10LLRi9GI0LDQtdGCINC70LjQvNC40YIgMjAg0JzQkS4iKQogICAgICAgICAgICBpZiBraW5kID09ICJwbmciIGFuZCBub3QgcmF3LnN0YXJ0c3dpdGgoYiJceDg5UE5HXHJcblx4MWFcbiIpOgogICAgICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcigi0JLRgdGC0YDQvtC10L3QvdGL0LUg0LTQsNC90L3Ri9C1INC90LUg0LjQvNC10Y7RgiDRgdC40LPQvdCw0YLRg9GA0YMgUE5HLiIpCiAgICAgICAgICAgIGlmIGtpbmQgPT0gImpwZyIgYW5kIG5vdCByYXcuc3RhcnRzd2l0aChiIlx4ZmZceGQ4XHhmZiIpOgogICAgICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcigi0JLRgdGC0YDQvtC10L3QvdGL0LUg0LTQsNC90L3Ri9C1INC90LUg0LjQvNC10Y7RgiDRgdC40LPQvdCw0YLRg9GA0YMgSlBFRy4iKQogICAgICAgICAgICByZXR1cm4gcmF3CiAgICByYWlzZSBWYWx1ZUVycm9yKGYi0JIg0LLRi9Cx0YDQsNC90L3QvtC8INC+0YLQstC10YLQtSDQvdC10YIg0LLRgdGC0YDQvtC10L3QvdC+0LPQviBiYXNlNjQge3dhbnRlZC51cHBlcigpfSDQuNC30L7QsdGA0LDQttC10L3QuNGPLiDQktC90LXRiNC90LjQtSBVUkwg0L3QtSDQt9Cw0LPRgNGD0LbQsNGO0YLRgdGPLiIpCgoKZGVmIF9pbnRlcm5hbF9maWxlX3BhdGgobWVzc2FnZTogZGljdCwgd2FudGVkOiBzdHIpIC0+IE9wdGlvbmFsW3N0cl06CiAgICAiIiJSZXR1cm4gb25seSBPcGVuIFdlYlVJJ3Mgc2FtZS1vcmlnaW4gZmlsZS1jb250ZW50IHJvdXRlLCBuZXZlciBhbiBleHRlcm5hbCBVUkwuIiIiCiAgICBmb3IgdGV4dCBpbiBfd2Fsa19zdHJpbmdzKG1lc3NhZ2UpOgogICAgICAgIGZvciBtYXRjaCBpbiBJTlRFUk5BTF9GSUxFX1VSTC5maW5kaXRlcih0ZXh0KToKICAgICAgICAgICAgY2FuZGlkYXRlID0gbWF0Y2guZ3JvdXAoMCkucnN0cmlwKCIuLDshKV19IikKICAgICAgICAgICAgcGFyc2VkID0gdXJsc3BsaXQoY2FuZGlkYXRlKQogICAgICAgICAgICBwYXRoID0gcGFyc2VkLnBhdGggaWYgcGFyc2VkLnNjaGVtZSBlbHNlIGNhbmRpZGF0ZS5zcGxpdCgiPyIsIDEpWzBdLnNwbGl0KCIjIiwgMSlbMF0KICAgICAgICAgICAgIyBLZWVwIGFic29sdXRlIFVSTHMgaW50YWN0OyB0aGUgYnJvd3NlciByZWplY3RzIHRoZW0gdW5sZXNzIHRoZXkgYXJlIHNhbWUtb3JpZ2luLgogICAgICAgICAgICBpZiBwYXRoID09IG1hdGNoLmdyb3VwKDEpOgogICAgICAgICAgICAgICAgcmV0dXJuIGNhbmRpZGF0ZQogICAgcmV0dXJuIE5vbmUKCgpkZWYgX3BheWxvYWQobWVzc2FnZTogZGljdCwgZm10OiBzdHIpOgogICAgc3RyaW5ncyA9IGxpc3QoX3dhbGtfc3RyaW5ncyhtZXNzYWdlKSkKICAgIGlmIGZtdCA9PSAic3ZnIjoKICAgICAgICBmb3IgdGV4dCBpbiBzdHJpbmdzOgogICAgICAgICAgICBkYXRhX21hdGNoID0gU1ZHX0RBVEFfVVJJLnNlYXJjaCh0ZXh0KQogICAgICAgICAgICBpZiBkYXRhX21hdGNoOgogICAgICAgICAgICAgICAgZW5jb2RlZCA9IGRhdGFfbWF0Y2guZ3JvdXAoMSkKICAgICAgICAgICAgICAgIGlmIGxlbihlbmNvZGVkKSA+ICgoTUFYX1NWR19CWVRFUyArIDIpIC8vIDMpICogNCArIDMyOgogICAgICAgICAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoIlNWRyDQv9GA0LXQstGL0YjQsNC10YIg0LvQuNC80LjRgiAyINCc0JEuIikKICAgICAgICAgICAgICAgIHRyeToKICAgICAgICAgICAgICAgICAgICBzdmcgPSBiYXNlNjQuYjY0ZGVjb2RlKHJlLnN1YihyIlxzKyIsICIiLCBlbmNvZGVkKSwgdmFsaWRhdGU9VHJ1ZSkuZGVjb2RlKCJ1dGYtOCIpCiAgICAgICAgICAgICAgICBleGNlcHQgKGJpbmFzY2lpLkVycm9yLCBVbmljb2RlRGVjb2RlRXJyb3IsIFZhbHVlRXJyb3IpIGFzIGV4YzoKICAgICAgICAgICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCLQktGB0YLRgNC+0LXQvdC90YvQuSBTVkcg0L/QvtCy0YDQtdC20LTRkdC9INC40LvQuCDQvdC1INGP0LLQu9GP0LXRgtGB0Y8gVVRGLTguIikgZnJvbSBleGMKICAgICAgICAgICAgICAgIHJldHVybiBfc2FmZV9zdmcoc3ZnKQogICAgICAgICAgICBtYXRjaCA9IFNWR19GRU5DRS5zZWFyY2godGV4dCkgb3IgU1ZHX01BUktVUC5zZWFyY2godGV4dCkKICAgICAgICAgICAgaWYgbWF0Y2g6CiAgICAgICAgICAgICAgICByZXR1cm4gX3NhZmVfc3ZnKG1hdGNoLmdyb3VwKDEpIGlmIG1hdGNoLmxhc3RpbmRleCBlbHNlIG1hdGNoLmdyb3VwKDApKQogICAgICAgIHBhdGggPSBfaW50ZXJuYWxfZmlsZV9wYXRoKG1lc3NhZ2UsIGZtdCkKICAgICAgICBpZiBwYXRoOgogICAgICAgICAgICByZXR1cm4gcGF0aAogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoItCd0LUg0L3QsNC50LTQtdC9IFNWRy3QutC+0LQg0LjQu9C4INC40LfQvtCx0YDQsNC20LXQvdC40LUgT3BlbiBXZWJVSS4g0J/QvtC00LTQtdGA0LbQuNCy0LDRjtGC0YHRjyDQsdC70L7QuiBgYGBzdmdgYGAg0LggL2FwaS92MS9maWxlcy97aWR9L2NvbnRlbnQuIikKICAgIHRyeToKICAgICAgICByZXR1cm4gX2ltYWdlX3BheWxvYWQoc3RyaW5ncywgZm10KQogICAgZXhjZXB0IFZhbHVlRXJyb3IgYXMgZXhjOgogICAgICAgIGlmICLQvdC10YIg0LLRgdGC0YDQvtC10L3QvdC+0LPQviBiYXNlNjQiIG5vdCBpbiBzdHIoZXhjKToKICAgICAgICAgICAgcmFpc2UKICAgIHBhdGggPSBfaW50ZXJuYWxfZmlsZV9wYXRoKG1lc3NhZ2UsIGZtdCkKICAgIGlmIHBhdGg6CiAgICAgICAgcmV0dXJuIHBhdGgKICAgIHJhaXNlIFZhbHVlRXJyb3IoZiLQndC10YIg0LLRgdGC0YDQvtC10L3QvdC+0LPQviBiYXNlNjQge2ZtdC51cHBlcigpfSDQuNC70Lgg0LLQvdGD0YLRgNC10L3QvdC10LPQviDRhNCw0LnQu9CwIE9wZW4gV2ViVUkuINCS0L3QtdGI0L3QuNC1IFVSTCDQvdC1INC30LDQs9GA0YPQttCw0Y7RgtGB0Y8uIikKCgpkZWYgX3NsdWcodGV4dDogc3RyKSAtPiBzdHI6CiAgICBjbGVhbiA9IHJlLnN1YihyIlteXHfQgC3Tv+S4gC3pv78tXSsiLCAiXyIsIHRleHQsIGZsYWdzPXJlLlUpLnN0cmlwKCJfIikKICAgIHJldHVybiAoY2xlYW4gb3IgImltYWdlIilbOjUwXQoKCmRlZiBfaW1hZ2VfdGl0bGUobWVzc2FnZTogZGljdCkgLT4gc3RyOgogICAgZm9yIHZhbHVlIGluIChtZXNzYWdlLmdldCgiZmlsZXMiKSBvciBbXSkgaWYgaXNpbnN0YW5jZShtZXNzYWdlLmdldCgiZmlsZXMiKSwgbGlzdCkgZWxzZSBbXToKICAgICAgICBpZiBpc2luc3RhbmNlKHZhbHVlLCBkaWN0KToKICAgICAgICAgICAgZm9yIGtleSBpbiAoImZpbGVuYW1lIiwgIm5hbWUiKToKICAgICAgICAgICAgICAgIGlmIGlzaW5zdGFuY2UodmFsdWUuZ2V0KGtleSksIHN0cikgYW5kIHZhbHVlW2tleV0uc3RyaXAoKToKICAgICAgICAgICAgICAgICAgICByZXR1cm4gX3NsdWcodmFsdWVba2V5XS5yc3BsaXQoIi4iLCAxKVswXSkKICAgIGZvciB0ZXh0IGluIF93YWxrX3N0cmluZ3MobWVzc2FnZS5nZXQoImNvbnRlbnQiLCAiIikpOgogICAgICAgIGFsdCA9IHJlLnNlYXJjaChyIiFcWyhbXlxdXXsxLDEwMH0pXF1cKCIsIHRleHQpCiAgICAgICAgaWYgYWx0OgogICAgICAgICAgICByZXR1cm4gX3NsdWcoYWx0Lmdyb3VwKDEpKQogICAgICAgIGhlYWRpbmcgPSByZS5zZWFyY2gociJeI3sxLDN9XHMrKC4rKSQiLCB0ZXh0LCByZS5NKQogICAgICAgIGlmIGhlYWRpbmc6CiAgICAgICAgICAgIHJldHVybiBfc2x1ZyhoZWFkaW5nLmdyb3VwKDEpKQogICAgcmV0dXJuICJpbWFnZSIKCgpkZWYgX2Rvd25sb2FkX2pzKGRhdGE6IGJ5dGVzLCBmaWxlbmFtZTogc3RyLCBtaW1lOiBzdHIpIC0+IHN0cjoKICAgIGVuY29kZWQgPSBiYXNlNjQuYjY0ZW5jb2RlKGRhdGEpLmRlY29kZSgiYXNjaWkiKQogICAgcmV0dXJuIGYnJycoZnVuY3Rpb24oKXt7Y29uc3QgYj1hdG9iKCJ7ZW5jb2RlZH0iKTtjb25zdCBhPW5ldyBVaW50OEFycmF5KGIubGVuZ3RoKTtmb3IobGV0IGk9MDtpPGIubGVuZ3RoO2krKylhW2ldPWIuY2hhckNvZGVBdChpKTtjb25zdCB1PVVSTC5jcmVhdGVPYmplY3RVUkwobmV3IEJsb2IoW2FdLHt7dHlwZToie21pbWV9In19KSk7Y29uc3QgeD1kb2N1bWVudC5jcmVhdGVFbGVtZW50KCJhIik7eC5ocmVmPXU7eC5kb3dubG9hZD17ZmlsZW5hbWUhcn07eC5jbGljaygpO3NldFRpbWVvdXQoKCk9PlVSTC5yZXZva2VPYmplY3RVUkwodSksMTAwMCk7fX0pKCk7JycnCgoKZGVmIF9kb3dubG9hZF9maWxlX2pzKHBhdGg6IHN0ciwgZmlsZW5hbWU6IHN0ciwgZm10OiBzdHIpIC0+IHN0cjoKICAgICIiIkZldGNoIGFuIGF1dGhlbnRpY2F0ZWQgc2FtZS1vcmlnaW4gT3BlbiBXZWJVSSBmaWxlIGFuZCB2YWxpZGF0ZSBiZWZvcmUgZG93bmxvYWQuIiIiCiAgICB1cmwgPSBqc29uLmR1bXBzKHBhdGgpCiAgICBuYW1lID0ganNvbi5kdW1wcyhmaWxlbmFtZSkKICAgIGlmIGZtdCA9PSAic3ZnIjoKICAgICAgICB2YWxpZGF0b3IgPSByJycnaWYoYmxvYi5zaXplPjIwOTcxNTIpdGhyb3cgRXJyb3IoIlNWRyDQsdC+0LvRjNGI0LUgMiDQnNCRIik7Y29uc3QgdGV4dD1hd2FpdCBibG9iLnRleHQoKTtjb25zdCBkb2M9bmV3IERPTVBhcnNlcigpLnBhcnNlRnJvbVN0cmluZyh0ZXh0LCJpbWFnZS9zdmcreG1sIik7Y29uc3Qgcm9vdD1kb2MuZG9jdW1lbnRFbGVtZW50O2lmKHJvb3QubG9jYWxOYW1lIT09InN2ZyJ8fGRvYy5xdWVyeVNlbGVjdG9yKCJwYXJzZXJlcnJvciIpKXRocm93IEVycm9yKCLQntGC0LLQtdGCINC90LUg0Y/QstC70Y/QtdGC0YHRjyDQutC+0YDRgNC10LrRgtC90YvQvCBTVkciKTtpZihkb2MucXVlcnlTZWxlY3Rvcigic2NyaXB0LGZvcmVpZ25PYmplY3QsaWZyYW1lLG9iamVjdCxlbWJlZCIpKXRocm93IEVycm9yKCJTVkcg0YHQvtC00LXRgNC20LjRgiDQsNC60YLQuNCy0L3QvtC1INGB0L7QtNC10YDQttC40LzQvtC1Iik7Zm9yKGNvbnN0IGVsIG9mIGRvYy5xdWVyeVNlbGVjdG9yQWxsKCIqIikpe2lmKGVsLmxvY2FsTmFtZS50b0xvd2VyQ2FzZSgpPT09InN0eWxlIiYmL2phdmFzY3JpcHQ6fHVybFwoXHMqWydcIl0/XHMqKD86aHR0cHM/OnxcL1wvKXxAaW1wb3J0L2kudGVzdChlbC50ZXh0Q29udGVudCkpdGhyb3cgRXJyb3IoIlNWRyDRgdC+0LTQtdGA0LbQuNGCINCy0L3QtdGI0L3QuNC1INGB0YLQuNC70Lgg0LjQu9C4INC60L7QtCIpO2Zvcihjb25zdCBhdHRyIG9mIGVsLmF0dHJpYnV0ZXMpe2NvbnN0IHY9YXR0ci52YWx1ZS50cmltKCkudG9Mb3dlckNhc2UoKTtpZihhdHRyLm5hbWUudG9Mb3dlckNhc2UoKS5zdGFydHNXaXRoKCJvbiIpfHwvamF2YXNjcmlwdDp8ZGF0YTp0ZXh0XC9odG1sfHVybFwoXHMqWydcIl0/XHMqKD86aHR0cHM/OnxcL1wvKS8udGVzdCh2KSl0aHJvdyBFcnJvcigiU1ZHINGB0L7QtNC10YDQttC40YIg0L3QtdCx0LXQt9C+0L/QsNGB0L3Rg9GOINGB0YHRi9C70LrRgyIpO2lmKFsiaHJlZiIsInNyYyJdLmluY2x1ZGVzKGF0dHIubG9jYWxOYW1lLnRvTG93ZXJDYXNlKCkpJiZ2JiYhdi5zdGFydHNXaXRoKCIjIikpdGhyb3cgRXJyb3IoIlNWRyDRgdC+0LTQtdGA0LbQuNGCINCy0L3QtdGI0L3RjtGOINGB0YHRi9C70LrRgyIpO319YmxvYj1uZXcgQmxvYihbbmV3IFhNTFNlcmlhbGl6ZXIoKS5zZXJpYWxpemVUb1N0cmluZyhkb2MpXSx7dHlwZToiaW1hZ2Uvc3ZnK3htbCJ9KTsnJycKICAgIGVsaWYgZm10ID09ICJwbmciOgogICAgICAgIHZhbGlkYXRvciA9ICcnJ2NvbnN0IGI9bmV3IFVpbnQ4QXJyYXkoYXdhaXQgYmxvYi5zbGljZSgwLDgpLmFycmF5QnVmZmVyKCkpO2lmKGJsb2Iuc2l6ZTw4fHxiWzBdIT09MTM3fHxiWzFdIT09ODB8fGJbMl0hPT03OHx8YlszXSE9PTcxfHxiWzRdIT09MTN8fGJbNV0hPT0xMHx8Yls2XSE9PTI2fHxiWzddIT09MTApdGhyb3cgRXJyb3IoItCk0LDQudC7INC90LUg0Y/QstC70Y/QtdGC0YHRjyBQTkciKTsnJycKICAgIGVsc2U6CiAgICAgICAgdmFsaWRhdG9yID0gJycnY29uc3QgYj1uZXcgVWludDhBcnJheShhd2FpdCBibG9iLnNsaWNlKDAsMykuYXJyYXlCdWZmZXIoKSk7aWYoYmxvYi5zaXplPDN8fGJbMF0hPT0yNTV8fGJbMV0hPT0yMTZ8fGJbMl0hPT0yNTUpdGhyb3cgRXJyb3IoItCk0LDQudC7INC90LUg0Y/QstC70Y/QtdGC0YHRjyBKUEVHIik7JycnCiAgICByZXR1cm4gZicnJyhhc3luYygpPT57e3RyeXt7Y29uc3QgdT1uZXcgVVJMKHt1cmx9LGxvY2F0aW9uLmhyZWYpO2lmKHUub3JpZ2luIT09bG9jYXRpb24ub3JpZ2lufHwhL15cXC9hcGlcXC92MVxcL2ZpbGVzXFwvW0EtWmEtejAtOV8tXStcXC9jb250ZW50JC8udGVzdCh1LnBhdGhuYW1lKSl0aHJvdyBFcnJvcigi0KDQsNC30YDQtdGI0LXQvdGLINGC0L7Qu9GM0LrQviDQstC90YPRgtGA0LXQvdC90LjQtSDRhNCw0LnQu9GLIE9wZW4gV2ViVUkiKTtjb25zdCByPWF3YWl0IGZldGNoKHUuaHJlZix7e2NyZWRlbnRpYWxzOiJzYW1lLW9yaWdpbiJ9fSk7aWYoIXIub2spdGhyb3cgRXJyb3IoItCd0LUg0YPQtNCw0LvQvtGB0Ywg0L/QvtC70YPRh9C40YLRjCDRhNCw0LnQuyAoSFRUUCAiK3Iuc3RhdHVzKyIpIik7bGV0IGJsb2I9YXdhaXQgci5ibG9iKCk7aWYoYmxvYi5zaXplPjIwOTcxNTIwKXRocm93IEVycm9yKCLQpNCw0LnQuyDQsdC+0LvRjNGI0LUgMjAg0JzQkSIpO3t2YWxpZGF0b3J9Y29uc3QgYT1kb2N1bWVudC5jcmVhdGVFbGVtZW50KCJhIik7YS5ocmVmPVVSTC5jcmVhdGVPYmplY3RVUkwoYmxvYik7YS5kb3dubG9hZD17bmFtZX07ZG9jdW1lbnQuYm9keS5hcHBlbmRDaGlsZChhKTthLmNsaWNrKCk7c2V0VGltZW91dCgoKT0+e3tVUkwucmV2b2tlT2JqZWN0VVJMKGEuaHJlZik7YS5yZW1vdmUoKTt9fSwxMDAwKTt9fWNhdGNoKGUpe3tjb25zb2xlLmVycm9yKCJJbWFnZSBleHBvcnQgZmFpbGVkOiIsZSk7d2luZG93LmRpc3BhdGNoRXZlbnQobmV3IEN1c3RvbUV2ZW50KCJvcGVuLXdlYnVpLXRvYXN0Iix7e2RldGFpbDp7e3R5cGU6ImVycm9yIixjb250ZW50OiLQrdC60YHQv9C+0YDRgiDQuNC30L7QsdGA0LDQttC10L3QuNGPOiAiK2UubWVzc2FnZX19fX0pKTt9fX19KSgpOycnJwoKCmNsYXNzIEFjdGlvbjoKICAgIGNsYXNzIFZhbHZlcyhCYXNlTW9kZWwpOgogICAgICAgIHNjb3BlOiBzdHIgPSBGaWVsZChkZWZhdWx0PSJsYXN0X21lc3NhZ2UiLCBkZXNjcmlwdGlvbj0iRXhwb3J0IHRoZSBzZWxlY3RlZCBhbnN3ZXIgb25seTsgYWxsX21lc3NhZ2VzIHNlYXJjaGVzIHRoZSBjb252ZXJzYXRpb24iKQoKICAgIGRlZiBfX2luaXRfXyhzZWxmKToKICAgICAgICBzZWxmLnZhbHZlcyA9IHNlbGYuVmFsdmVzKCkKICAgICAgICBzZWxmLmFjdGlvbnMgPSBbeyJpZCI6IGtleSwgIm5hbWUiOiB2YWx1ZVswXSwgImljb25fdXJsIjogc2VsZi5faWNvbih2YWx1ZVsyXSwgdmFsdWVbM10pfSBmb3Iga2V5LCB2YWx1ZSBpbiBGT1JNQVRTLml0ZW1zKCldCgogICAgQHN0YXRpY21ldGhvZAogICAgZGVmIF9pY29uKGNvbG9yOiBzdHIsIGxldHRlcjogc3RyKSAtPiBzdHI6CiAgICAgICAgc3ZnID0gZic8c3ZnIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld0JveD0iMCAwIDI0IDI0Ij48cmVjdCB4PSIzIiB5PSIyIiB3aWR0aD0iMTgiIGhlaWdodD0iMjAiIHJ4PSIzIiBmaWxsPSJ7Y29sb3J9Ii8+PHRleHQgeD0iMTIiIHk9IjE3IiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZvbnQtd2VpZ2h0PSJib2xkIiBmaWxsPSIjZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj57bGV0dGVyfTwvdGV4dD48L3N2Zz4nCiAgICAgICAgcmV0dXJuICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LCIgKyBiYXNlNjQuYjY0ZW5jb2RlKHN2Zy5lbmNvZGUoKSkuZGVjb2RlKCkKCiAgICBhc3luYyBkZWYgYWN0aW9uKHNlbGYsIGJvZHk6IGRpY3QsIF9faWRfXzogT3B0aW9uYWxbc3RyXSA9IE5vbmUsIF9fZXZlbnRfZW1pdHRlcl9fPU5vbmUsIF9fZXZlbnRfY2FsbF9fPU5vbmUsICoqXzogQW55KToKICAgICAgICBmbXQgPSAoX19pZF9fIG9yICJzdmciKS5sb3dlcigpCiAgICAgICAgaWYgZm10IG5vdCBpbiBGT1JNQVRTOgogICAgICAgICAgICBhd2FpdCBzZWxmLl9ub3RpZnkoX19ldmVudF9lbWl0dGVyX18sICJlcnJvciIsIGYi0J3QtdC40LfQstC10YHRgtC90YvQuSDRhNC+0YDQvNCw0YIg0LjQt9C+0LHRgNCw0LbQtdC90LjRjzoge2ZtdH0iKQogICAgICAgICAgICByZXR1cm4gTm9uZQogICAgICAgIG1lc3NhZ2VzID0gW20gZm9yIG0gaW4gKGJvZHkuZ2V0KCJtZXNzYWdlcyIpIG9yIFtdKSBpZiBpc2luc3RhbmNlKG0sIGRpY3QpXQogICAgICAgIGlmIHNlbGYudmFsdmVzLnNjb3BlICE9ICJhbGxfbWVzc2FnZXMiOgogICAgICAgICAgICBtaWQgPSBib2R5LmdldCgiaWQiKQogICAgICAgICAgICBtZXNzYWdlcyA9IFttIGZvciBtIGluIG1lc3NhZ2VzIGlmIG1pZCBhbmQgbS5nZXQoImlkIikgPT0gbWlkIGFuZCBtLmdldCgicm9sZSIpID09ICJhc3Npc3RhbnQiXSBvciBbbSBmb3IgbSBpbiByZXZlcnNlZChtZXNzYWdlcykgaWYgbS5nZXQoInJvbGUiKSA9PSAiYXNzaXN0YW50Il1bOjFdCiAgICAgICAgaWYgbm90IG1lc3NhZ2VzOgogICAgICAgICAgICBhd2FpdCBzZWxmLl9ub3RpZnkoX19ldmVudF9lbWl0dGVyX18sICJ3YXJuaW5nIiwgItCd0LUg0L3QsNC50LTQtdC9INC+0YLQstC10YIg0LzQvtC00LXQu9C4INGBINC00LDQvdC90YvQvNC4INC40LfQvtCx0YDQsNC20LXQvdC40Y8uIikKICAgICAgICAgICAgcmV0dXJuIE5vbmUKICAgICAgICB0cnk6CiAgICAgICAgICAgIHNlbGVjdGVkID0gTm9uZQogICAgICAgICAgICByYXcgPSBOb25lCiAgICAgICAgICAgIGxhc3RfZXJyb3IgPSBOb25lCiAgICAgICAgICAgIGNhbmRpZGF0ZXMgPSBsaXN0KHJldmVyc2VkKG1lc3NhZ2VzKSkKICAgICAgICAgICAgZm9yIG1lc3NhZ2UgaW4gY2FuZGlkYXRlczoKICAgICAgICAgICAgICAgIHRyeToKICAgICAgICAgICAgICAgICAgICByYXcgPSBfcGF5bG9hZChtZXNzYWdlLCBmbXQpCiAgICAgICAgICAgICAgICAgICAgc2VsZWN0ZWQgPSBtZXNzYWdlCiAgICAgICAgICAgICAgICAgICAgYnJlYWsKICAgICAgICAgICAgICAgIGV4Y2VwdCBWYWx1ZUVycm9yIGFzIGV4YzoKICAgICAgICAgICAgICAgICAgICBsYXN0X2Vycm9yID0gZXhjCiAgICAgICAgICAgIGlmIHNlbGVjdGVkIGlzIE5vbmU6CiAgICAgICAgICAgICAgICByYWlzZSBsYXN0X2Vycm9yIG9yIFZhbHVlRXJyb3IoItCSINGB0L7QvtCx0YnQtdC90LjRj9GFINC90LUg0L3QsNC50LTQtdC90L4g0L/QvtC00LTQtdGA0LbQuNCy0LDQtdC80L7QtSDQuNC30L7QsdGA0LDQttC10L3QuNC1LiIpCiAgICAgICAgICAgIHRpdGxlID0gX2ltYWdlX3RpdGxlKHNlbGVjdGVkKQogICAgICAgICAgICBmaWxlbmFtZSA9IGYie3RpdGxlfS17dGltZS5zdHJmdGltZSgnJVklbSVkLSVIJU0nKX0ue2ZtdH0iCiAgICAgICAgICAgIGNvZGUgPSBfZG93bmxvYWRfZmlsZV9qcyhyYXcsIGZpbGVuYW1lLCBmbXQpIGlmIGlzaW5zdGFuY2UocmF3LCBzdHIpIGVsc2UgX2Rvd25sb2FkX2pzKHJhdywgZmlsZW5hbWUsIEZPUk1BVFNbZm10XVsxXSkKICAgICAgICAgICAgaWYgX19ldmVudF9lbWl0dGVyX186CiAgICAgICAgICAgICAgICBhd2FpdCBfX2V2ZW50X2VtaXR0ZXJfXyh7InR5cGUiOiAiZXhlY3V0ZSIsICJkYXRhIjogeyJjb2RlIjogY29kZX19KQogICAgICAgICAgICAgICAgYXdhaXQgc2VsZi5fbm90aWZ5KF9fZXZlbnRfZW1pdHRlcl9fLCAic3VjY2VzcyIsIGYi0KHQutCw0YfQuNCy0LDQtdGC0YHRjyB7ZmlsZW5hbWV9ICh7bGVuKHJhdykgLy8gMTAyNH0g0JrQkSkiKQogICAgICAgICAgICBlbGlmIF9fZXZlbnRfY2FsbF9fOgogICAgICAgICAgICAgICAgYXdhaXQgX19ldmVudF9jYWxsX18oeyJ0eXBlIjogImV4ZWN1dGUiLCAiZGF0YSI6IHsiY29kZSI6IGNvZGV9fSkKICAgICAgICBleGNlcHQgVmFsdWVFcnJvciBhcyBleGM6CiAgICAgICAgICAgIGF3YWl0IHNlbGYuX25vdGlmeShfX2V2ZW50X2VtaXR0ZXJfXywgIndhcm5pbmciLCBzdHIoZXhjKSkKICAgICAgICBleGNlcHQgRXhjZXB0aW9uIGFzIGV4YzogICMgbm9xYTogQkxFMDAxCiAgICAgICAgICAgIGF3YWl0IHNlbGYuX25vdGlmeShfX2V2ZW50X2VtaXR0ZXJfXywgImVycm9yIiwgZiLQntGI0LjQsdC60LAg0Y3QutGB0L/QvtGA0YLQsCDQuNC30L7QsdGA0LDQttC10L3QuNGPOiB7dHlwZShleGMpLl9fbmFtZV9ffToge2V4Y30iKQogICAgICAgIHJldHVybiBOb25lCgogICAgYXN5bmMgZGVmIF9ub3RpZnkoc2VsZiwgZW1pdHRlciwga2luZDogc3RyLCB0ZXh0OiBzdHIpOgogICAgICAgIGlmIGVtaXR0ZXI6CiAgICAgICAgICAgIGF3YWl0IGVtaXR0ZXIoeyJ0eXBlIjogIm5vdGlmaWNhdGlvbiIsICJkYXRhIjogeyJ0eXBlIjoga2luZCwgImNvbnRlbnQiOiB0ZXh0fX0pCg=="
+GROUP = "images"
+CHOICES = {'SVG': 'svg', 'PNG': 'png', 'JPG': 'jpg', 'WebP': 'webp'}
+_SOURCE = None
+
+
+def _source():
+    global _SOURCE
+    if _SOURCE is None:
+        _SOURCE = {"__name__": "owui_standalone_export_source"}
+        exec(compile(base64.b64decode(SOURCE_B64), "embedded_exporter.py", "exec"), _SOURCE)
+    return _SOURCE
+
+
+def _messages(body: dict) -> list[dict]:
+    return [m for m in body.get("messages", []) if isinstance(m, dict)]
+
+
+def _clicked(body: dict) -> list[dict]:
+    messages = _messages(body)
+    mid = body.get("id")
+    found = [m for m in messages if mid and m.get("id") == mid and m.get("role") == "assistant"]
+    return found or [m for m in reversed(messages) if m.get("role") == "assistant"][:1]
+
+
+def _notify(emitter, level: str, text: str):
+    if emitter:
+        return emitter({"type": "notification", "data": {"type": level, "content": text}})
+
+
+async def _choose(event_call, emitter):
+    if not event_call:
+        await _notify(emitter, "error", "Диалог выбора недоступен: требуется обычный чат Open WebUI с активной вкладкой.")
+        return None
+    result = await event_call({"type": "input", "data": {
+        "title": "Выберите формат",
+        "message": "Выберите формат для ответа, под которым нажата кнопка.",
+        "input": {"type": "select", "options": list(CHOICES)},
+    }})
+    if result is False or result is None or result == "":
+        await _notify(emitter, "info", "Экспорт отменён.")
+        return None
+    if isinstance(result, dict):
+        if result.get("error"):
+            await _notify(emitter, "error", f"Диалог выбора не завершён: {result['error']}")
+        else:
+            await _notify(emitter, "error", "Не удалось получить выбранный формат.")
+        return None
+    fmt = CHOICES.get(str(result))
+    if not fmt:
+        await _notify(emitter, "error", f"Неизвестный формат: {result}")
+        return None
+    return fmt
+
+
+def _text(message: dict) -> str:
+    content = message.get("content", "")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "\n".join(str(p.get("text", "")) for p in content if isinstance(p, dict) and p.get("text"))
+    return ""
+
+
+def _code_block(module: dict, messages: list[dict], fmt: str) -> str:
+    aliases = {
+        "ps1": {"powershell", "pwsh", "ps1"}, "sh": {"bash", "sh", "shell"},
+        "py": {"python", "python3", "py"}, "vba": {"vba", "visualbasic", "visual-basic", "vb", "vb6"},
+        "js": {"javascript", "js", "ecmascript"}, "ts": {"typescript", "ts"}, "php": {"php"},
+        "html": {"html", "htm"}, "css": {"css"}, "java": {"java"}, "c": {"c"},
+        "cpp": {"cpp", "c++", "cplusplus"}, "cs": {"csharp", "c#", "cs"}, "go": {"go", "golang"},
+        "rs": {"rust", "rs"}, "sql": {"sql"}, "json": {"json"}, "jsonl": {"jsonl", "ndjson"},
+        "xml": {"xml"}, "yml": {"yaml", "yml"}, "toml": {"toml"}, "ini": {"ini"},
+        "conf": {"conf", "config"}, "env": {"env", "dotenv"}, "properties": {"properties", "java-properties"},
+        "csv": {"csv"}, "tsv": {"tsv"},
+    }
+    parser = module["parse_markdown"]
+    matches = [b for m in messages for b in parser(_text(m)) if b.get("t") == "code" and b.get("lang", "").lower() in aliases[fmt]]
+    if len(matches) != 1:
+        raise ValueError(f"Для {fmt.upper()} нужен ровно один отдельный fenced-блок с меткой {fmt}; найдено: {len(matches)}.")
+    text = matches[0].get("text", "").strip()
+    if not text:
+        raise ValueError("Блок пустой.")
+    return text
+
+
+def _validate_data(source: str, fmt: str) -> None:
+    if fmt == "json":
+        json.loads(source)
+    elif fmt == "jsonl":
+        lines = [line for line in source.splitlines() if line.strip() and not line.lstrip().startswith("#")]
+        if not lines:
+            raise ValueError("JSONL-блок пустой.")
+        for n, line in enumerate(lines, 1):
+            try:
+                json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"Некорректный JSONL в строке {n}: {exc.msg}.") from exc
+    elif fmt == "xml":
+        ET.fromstring(source)
+    elif fmt == "toml":
+        import tomllib
+        tomllib.loads(source)
+    elif fmt == "ini":
+        parser = configparser.ConfigParser()
+        parser.read_string(source)
+    elif fmt in {"env", "properties"}:
+        for n, line in enumerate(source.splitlines(), 1):
+            value = line.strip()
+            if not value or value.startswith(("#", "!")):
+                continue
+            if fmt == "env":
+                if value.startswith("export "):
+                    value = value[7:].lstrip()
+                if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*\s*=", value):
+                    raise ValueError(f"Некорректная запись ENV в строке {n}: ожидается KEY=VALUE.")
+            elif not re.match(r"^[^:=\s][^:=]*\s*[:=]", value):
+                raise ValueError(f"Некорректная запись Properties в строке {n}: ожидается key=value или key:value.")
+    elif fmt in {"csv", "tsv"}:
+        rows = list(csv.reader(io.StringIO(source), delimiter="," if fmt == "csv" else "\t"))
+        if not rows or not any(rows):
+            raise ValueError(f"Блок {fmt.upper()} пустой.")
+        widths = {len(row) for row in rows if row}
+        if len(widths) > 1:
+            raise ValueError(f"В строках {fmt.upper()} разное количество колонок.")
+    elif fmt == "yml":
+        try:
+            import yaml
+        except ImportError:
+            if not source.strip():
+                raise ValueError("YAML-блок пустой.")
+            for n, line in enumerate(source.splitlines(), 1):
+                if "\t" in line[:len(line) - len(line.lstrip())]:
+                    raise ValueError(f"В YAML запрещены табы в отступе (строка {n}).")
+        else:
+            yaml.safe_load(source)
+
+
+def _download_js(raw: bytes, filename: str, mime: str) -> str:
+    b64 = base64.b64encode(raw).decode("ascii")
+    return f"""(()=>{{const b=atob("{b64}");const u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([u],{{type:{json.dumps(mime)}}}));a.download={json.dumps(filename, ensure_ascii=False)};document.body.appendChild(a);a.click();setTimeout(()=>{{URL.revokeObjectURL(a.href);a.remove();}},1000);}})();"""
+
+
+def _webp_js(data_b64: str | None, file_path: str | None, filename: str) -> str:
+    b64 = json.dumps(data_b64 or "")
+    path = json.dumps(file_path or "")
+    name = json.dumps(filename, ensure_ascii=False)
+    return f"""(async()=>{{try{{let src;if({path}){{const u=new URL({path},location.href);if(u.origin!==location.origin||!/^\\/api\\/v1\\/files\\/[A-Za-z0-9_-]+\\/content$/.test(u.pathname))throw Error("Разрешены только внутренние файлы Open WebUI");const r=await fetch(u.href,{{credentials:"same-origin"}});if(!r.ok)throw Error("HTTP "+r.status);src=await r.blob();if(src.size>20971520)throw Error("Изображение превышает 20 МБ");}}else{{const raw=atob({b64});const bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);src=new Blob([bytes]);}}const head=new Uint8Array(await src.slice(0,8).arrayBuffer());const png=head.length>=8&&head[0]===137&&head[1]===80&&head[2]===78&&head[3]===71&&head[4]===13&&head[5]===10&&head[6]===26&&head[7]===10;const jpg=head.length>=3&&head[0]===255&&head[1]===216&&head[2]===255;if(!png&&!jpg)throw Error("Источник должен быть корректным PNG или JPEG");src=new Blob([await src.arrayBuffer()],{{type:png?"image/png":"image/jpeg"}});const bitmap=await createImageBitmap(src);const canvas=document.createElement("canvas");canvas.width=bitmap.width;canvas.height=bitmap.height;const ctx=canvas.getContext("2d");if(!ctx)throw Error("Canvas недоступен");ctx.drawImage(bitmap,0,0);bitmap.close();const out=await new Promise(resolve=>canvas.toBlob(resolve,"image/webp",0.92));if(!out||out.type!=="image/webp")throw Error("Браузер не поддерживает экспорт WebP");const a=document.createElement("a");a.href=URL.createObjectURL(out);a.download={name};document.body.appendChild(a);a.click();setTimeout(()=>{{URL.revokeObjectURL(a.href);a.remove();}},1000);}}catch(e){{console.error("WebP export:",e);window.dispatchEvent(new CustomEvent("open-webui-toast",{{detail:{{type:"error",content:"WebP: "+e.message}}}}));}}}})();"""
+
+
+class Action:
+    actions = [{"id": "choose", "name": "IMG", "icon_url": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3QgeD0iMSIgeT0iMSIgd2lkdGg9IjMwIiBoZWlnaHQ9IjMwIiByeD0iOCIgZmlsbD0iIzdDM0FFRCIvPjx0ZXh0IHg9IjE2IiB5PSIyMSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTYiIGZvbnQtd2VpZ2h0PSI3MDAiIGZpbGw9IndoaXRlIj5JPC90ZXh0Pjwvc3ZnPg=="}]
+
+    class Valves(BaseModel):
+        pass
+
+    def __init__(self):
+        self.valves = self.Valves()
+
+    async def action(self, body: dict, __id__: str | None = None, __event_emitter__=None, __event_call__=None, **kwargs):
+        if __id__ not in (None, "choose"):
+            await _notify(__event_emitter__, "error", "Неизвестное действие.")
+            return None
+        fmt = await _choose(__event_call__, __event_emitter__)
+        if fmt is None:
+            return None
+        messages = _clicked(body)
+        if not messages:
+            await _notify(__event_emitter__, "warning", "Не найден ответ модели для экспорта.")
+            return None
+        try:
+            module = _source()
+            if GROUP == "documents":
+                await module["Action"]().action(body, __id__=fmt, __event_emitter__=__event_emitter__, __event_call__=__event_call__)
+                return None
+            if GROUP == "images":
+                if fmt != "webp":
+                    await module["Action"]().action(body, __id__=fmt, __event_emitter__=__event_emitter__, __event_call__=__event_call__)
+                    return None
+                message = messages[0]
+                raw = None
+                last_error = None
+                for input_fmt in ("png", "jpg"):
+                    try:
+                        raw = module["_payload"](message, input_fmt)
+                        break
+                    except ValueError as exc:
+                        last_error = exc
+                if raw is None:
+                    raise last_error or ValueError("Не найдено изображение для преобразования в WebP.")
+                data_b64 = base64.b64encode(raw).decode("ascii") if isinstance(raw, bytes) else None
+                file_path = raw if isinstance(raw, str) else None
+                name = f"{module['_image_title'](message)}-{time.strftime('%Y%m%d-%H%M')}.webp"
+                js = _webp_js(data_b64, file_path, name)
+                await __event_emitter__({"type": "execute", "data": {"code": js}})
+                await _notify(__event_emitter__, "success", f"Подготовлен WebP: {name}.")
+                return None
+
+            source = _code_block(module, messages, fmt)
+            if GROUP == "code":
+                ext = fmt
+                mime = "text/plain; charset=utf-8"
+                if fmt == "vba": ext = "bas"
+                filename = f"{fmt}-{time.strftime('%Y%m%d-%H%M')}.{ext}"
+                raw = (source + "\n").encode("utf-8")
+            else:
+                _validate_data(source, fmt)
+                ext = {"yml": "yml"}.get(fmt, fmt)
+                mime = {"json": "application/json", "xml": "application/xml", "yml": "application/yaml", "csv": "text/csv", "tsv": "text/tab-separated-values"}.get(fmt, "text/plain; charset=utf-8")
+                filename = f"data-{time.strftime('%Y%m%d-%H%M')}.{ext}"
+                raw = (source + "\n").encode("utf-8")
+            js = _download_js(raw, filename, mime)
+            await __event_emitter__({"type": "execute", "data": {"code": js}})
+            await _notify(__event_emitter__, "success", f"Скачивается {filename} ({len(raw) // 1024} КБ).")
+        except ValueError as exc:
+            await _notify(__event_emitter__, "warning", str(exc))
+        except ImportError as exc:
+            await _notify(__event_emitter__, "error", f"В образе Open WebUI отсутствует библиотека {exc.name}.")
+        except Exception as exc:
+            await _notify(__event_emitter__, "error", f"Экспорт {fmt.upper()} не выполнен: {type(exc).__name__}: {exc}")
+        return None

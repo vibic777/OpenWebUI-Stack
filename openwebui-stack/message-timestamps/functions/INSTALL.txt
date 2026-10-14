@@ -1,0 +1,10 @@
+Штампы времени: только функция message_timestamps.
+Показывает время каждого сообщения Open WebUI постоянно; может добавлять текстовую дату в ответ.
+
+Установка через Open WebUI API (Python 3.8+, стандартная библиотека):
+  python3 install_functions.py --url http://127.0.0.1:3000 --email ADMIN_EMAIL
+Удаление только этой функции:
+  python3 install_functions.py --url http://127.0.0.1:3000 --email ADMIN_EMAIL --remove
+Пароль будет запрошен скрыто; также поддерживаются OWUI_ADMIN_PASSWORD и OWUI_TOKEN.
+Для ручной установки импортируйте functions.json в Admin -> Functions.
+Удаление функции не убирает текстовые штампы, уже записанные в старых сообщениях.

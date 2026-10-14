@@ -1,0 +1,23 @@
+# Point Open WebUI at the rerank project. Same volumes. Never down -v.
+#
+#   docker compose -f docker-compose.rerank.yml up -d
+#   docker compose -f docker-compose.yml -f docker-compose.rerank-owui.yml up -d
+
+services:
+  open-webui:
+    environment:
+      ENABLE_RAG_HYBRID_SEARCH: "true"
+      RAG_RERANKING_ENGINE: external
+      RAG_RERANKING_MODEL: ${RERANK_MODEL:-bge-reranker-v2-m3}
+      RAG_EXTERNAL_RERANKER_URL: http://openwebui-rerank:8080/v1/rerank
+      RAG_EXTERNAL_RERANKER_API_KEY: ${RERANK_API_KEY:-not-needed}
+      RAG_TOP_K: ${RAG_TOP_K:-20}
+      RAG_TOP_K_RERANKER: ${RAG_TOP_K_RERANKER:-5}
+    networks:
+      - backend
+      - rerank
+
+networks:
+  rerank:
+    name: openwebui-rerank
+    external: true

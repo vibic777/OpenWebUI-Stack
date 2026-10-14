@@ -1,0 +1,57 @@
+# Secrets and local credentials
+.env
+.env.*
+!.env.example
+!**/.env.example
+**/s3.json
+**/secrets.json
+**/qdrant-apikey.conf
+**/admins.htpasswd
+**/.htpasswd
+**/policy.env
+**/.rerank-enabled
+**/backups/
+**/backup-*/
+**/*.dump
+**/*.sql.gz
+**/config.tgz
+**/config.tar.gz
+**/*.pem
+**/*.key
+**/id_rsa*
+**/id_ed25519*
+
+# Python caches and test/tool output
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Runtime caches, logs, temporary files
+.cache/
+cache/
+*.log
+*.tmp
+*.temp
+*.swp
+*.bak
+
+# Local data and generated service state
+**/data/
+**/logs/
+**/uploads/
+**/models/*.gguf
+
+# OS/editor metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+
+# Archived legacy projects and temporary handoff artifacts (kept locally, not in Git)
+/archive/

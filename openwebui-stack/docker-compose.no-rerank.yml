@@ -1,0 +1,12 @@
+# Clear reranker pointing without removing the rerank container.
+# Usage (off for A/B):
+#   docker compose -f docker-compose.yml -f docker-compose.no-rerank.yml up -d
+# Do not combine with docker-compose.rerank-owui.yml in the same up.
+services:
+  open-webui:
+    environment:
+      ENABLE_RAG_HYBRID_SEARCH: "false"
+      RAG_RERANKING_ENGINE: ""
+      RAG_RERANKING_MODEL: ""
+      RAG_EXTERNAL_RERANKER_URL: ""
+      RAG_EXTERNAL_RERANKER_API_KEY: ""

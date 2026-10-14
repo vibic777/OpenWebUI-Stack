@@ -1,0 +1,6 @@
+# Optional local model file: models/model.gguf (not stored in this repository).
+# Model: bge-reranker-v2-m3-Q8_0.gguf
+# Hugging Face repository: https://huggingface.co/gpustack/bge-reranker-v2-m3-GGUF
+# Original file size: 635676416 bytes (~607 MiB); format: GGUF.
+# Download the actual LFS file, not the small Git LFS pointer/stub, and save it as model.gguf here.
+# Verify size and checksum against the original artifact before deployment when available.
